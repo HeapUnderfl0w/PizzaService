@@ -1,7 +1,0 @@
-[conf]
-refresh_conf = 1000
-
-[pizza]
-url = "https://pizza.onoc.eu/api"
-refresh = 2000
-to_watch = [230, 231, 232, 257, 258]
