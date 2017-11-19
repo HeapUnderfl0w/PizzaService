@@ -2,6 +2,10 @@
 name = "pizza_service"
 version = "1.0.0"
 authors = ["HeapUnderflow <HeapUnderfl0w@users.noreply.github.com>"]
+publish = false
+license-file = "LICENSE"
+keywords = ["ONOC", "API", "Script"]
+
 
 [dependencies]
 reqwest = "^0.8"
