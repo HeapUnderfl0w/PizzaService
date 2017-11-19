@@ -35,8 +35,8 @@ fn main() {
 
     // Print info message
     match audio_mode {
-        true  => println!("[INFO ] Found the audio file and initialized the audio !"),
-        false => println!("[INFO ] Unable to find audio file or init audio !")
+        true => println!("[INFO ] Found the audio file and initialized the audio !"),
+        false => println!("[INFO ] Unable to find audio file or init audio !"),
     }
 
     // Can we find the audio file ?
@@ -94,9 +94,9 @@ fn main() {
                                 // that will allow other threads to reaquire it.
                                 let _audio_lock_guard = match c_audio_lock.try_lock() {
                                     Ok(guard) => guard,
-                                    // Error means we are unable to lock 
+                                    // Error means we are unable to lock
                                     // (a sound is probably already plaing)
-                                    Err(_) => return
+                                    Err(_) => return,
                                 };
 
                                 let path = audio_file.clone();
@@ -104,7 +104,9 @@ fn main() {
                                 // we were unable to find the audio file
                                 // PANIC, ABORT, ABANDON SHIP !
                                 if !path.exists() {
-                                    println!("[ERROR ] Cannot find the audio file, did you move it ?");
+                                    println!(
+                                        "[ERROR ] Cannot find the audio file, did you move it ?"
+                                    );
                                     return;
                                 }
 
@@ -134,7 +136,7 @@ fn main() {
             last_alive = Local::now();
             println!(
                 "[ECHO ] I AM ALIIIIIIVE ! [{}]",
-                last_alive.to_rfc2822() // Now with fancy Timestamp support
+                last_alive.to_rfc2822() /* Now with fancy Timestamp support */
             );
         }
 
