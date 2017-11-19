@@ -16,10 +16,13 @@ use std::io::Write;
 use std::io::Read;
 use std::thread::sleep as thread_sleep;
 use std::thread::spawn as thread_spawn;
+
 use chrono::Duration;
 use chrono::Local;
 use ears::Sound;
 use ears::AudioController;
+use std::sync::Mutex;
+use std::sync::Arc;
 
 fn main() {
     // Path to config file
@@ -64,6 +67,9 @@ fn main() {
 
     // Already printed ID's (to avoid multiple prints of the same id)
     let mut pushed: Vec<u32> = Vec::new();
+
+    // Lock that prohibits multiple sounds at the same time.
+    let audio_lock: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
     loop {
 
         // Request new data
@@ -79,11 +85,33 @@ fn main() {
                         // Check if we have audio mode
                         if audio_mode {
                             // Spawn a new thread that playes the success sound.
-                            // If there are multiple id's ready, each one will have its OWN
-                            // sound ! (fun Kappa)
+                            // the spawned thread will abort imediatly if a sound is
+                            // already playing.
+                            let c_audio_lock = audio_lock.clone();
+
                             thread_spawn(move || {
+                                // Store the lock. when the thread exits the lock is dropped
+                                // that will allow other threads to reaquire it.
+                                let _audio_lock_guard = match c_audio_lock.try_lock() {
+                                    Ok(guard) => guard,
+                                    // Error means we are unable to lock 
+                                    // (a sound is probably already plaing)
+                                    Err(_) => return
+                                };
+
                                 let path = audio_file.clone();
+
+                                // we were unable to find the audio file
+                                // PANIC, ABORT, ABANDON SHIP !
+                                if !path.exists() {
+                                    println!("[ERROR ] Cannot find the audio file, did you move it ?");
+                                    return;
+                                }
+
+                                // Create new sound output
                                 let mut snd = Sound::new(path.to_str().unwrap()).unwrap();
+
+                                // PLAY THA SICK MUSIC !
                                 snd.play();
 
                                 // Avoid premature exit of thread while sound is playing
