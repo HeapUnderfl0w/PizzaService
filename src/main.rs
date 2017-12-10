@@ -31,15 +31,12 @@ fn main() {
     let audio_file: &Path = Path::new("success.ogg");
 
     // Check if the audio file is actually there and try to init ears
-    let audio_mode = audio_file.exists() && ears::init();
-
-    // Print info message
-    match audio_mode {
+    match audio_file.exists() && ears::init() {
         true => println!("[INFO ] Found the audio file and initialized the audio !"),
         false => println!("[INFO ] Unable to find audio file or init audio !"),
     }
 
-    // Can we find the audio file ?
+    // Can we find the config file ?
     if !confp.exists() {
         // We did not find one, so we create it
         let mut f = File::create(confp).unwrap();
@@ -62,7 +59,7 @@ fn main() {
     // Last printing of "I AM ALIVE !"
     let mut last_alive = Local::now();
 
-    // Last change of metadata
+    // Last change of config file
     let mut last_change = fs::metadata("x.toml").unwrap().modified().unwrap();
 
     // Already printed ID's (to avoid multiple prints of the same id)
@@ -71,8 +68,7 @@ fn main() {
     // Lock that prohibits multiple sounds at the same time.
     let audio_lock: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
     loop {
-
-        // Request new data
+        // Request new data from API
         match request_update(&conf.pizza.url) {
             Ok(o) => {
                 // Iterate the pizzas
@@ -91,7 +87,10 @@ fn main() {
 
                             thread_spawn(move || {
                                 // Store the lock. when the thread exits the lock is dropped
-                                // that will allow other threads to reaquire it.
+                                // which will allow other threads to reaquire it.
+                                // We are also using try lock as that means if we error
+                                // another sound is already playing and this one dies not
+                                // have to be queued.
                                 let _audio_lock_guard = match c_audio_lock.try_lock() {
                                     Ok(guard) => guard,
                                     // Error means we are unable to lock
@@ -124,14 +123,16 @@ fn main() {
                 }
             },
             Err(e) => {
-                // This is dissapointing, but can be numerous reasons (timeout, etc)
+                // This is dissapointing, but can have numerous reasons (timeout, etc)
+                // Just print the message and be done with it.
                 println!("[ERROR] Invalid Response: {}", e);
             },
         }
 
         // Checked / Displayed all pizzas
         // Now check if we should print the next Alive Message
-
+        
+        // Probs make the duration here a config option but im lazy....
         if Local::now().signed_duration_since(last_alive) > Duration::minutes(1) {
             last_alive = Local::now();
             println!(
