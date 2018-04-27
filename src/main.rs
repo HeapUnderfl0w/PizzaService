@@ -1,28 +1,23 @@
-extern crate serde;
-extern crate toml;
-extern crate reqwest;
-extern crate serde_json;
 extern crate chrono;
 extern crate ears;
+extern crate reqwest;
+extern crate serde;
+extern crate serde_json;
+extern crate toml;
 
 #[macro_use]
 extern crate serde_derive;
 
+use std::{
+    fs::{self, File},
+    io::{Read, Write},
+    path::Path,
+    thread::{sleep as thread_sleep, spawn as thread_spawn},
+};
 
-use std::fs::File;
-use std::fs;
-use std::path::Path;
-use std::io::Write;
-use std::io::Read;
-use std::thread::sleep as thread_sleep;
-use std::thread::spawn as thread_spawn;
-
-use chrono::Duration;
-use chrono::Local;
-use ears::Sound;
-use ears::AudioController;
-use std::sync::Mutex;
-use std::sync::Arc;
+use chrono::{Duration, Local};
+use ears::{AudioController, Sound};
+use std::sync::{Arc, Mutex};
 
 fn main() {
     // Path to config file
@@ -31,17 +26,22 @@ fn main() {
     let audio_file: &Path = Path::new("success.ogg");
 
     // Check if the audio file is actually there and try to init ears
-    match audio_file.exists() && ears::init() {
-        true => println!("[INFO ] Found the audio file and initialized the audio !"),
-        false => println!("[INFO ] Unable to find audio file or init audio !"),
-    }
+    let audio_mode = match audio_file.exists() && ears::init() {
+        true => {
+            println!("[INFO ] Found the audio file and initialized the audio !");
+            true
+        }
+        false => {
+            println!("[INFO ] Unable to find audio file or init audio !");
+            false
+        }
+    };
 
     // Can we find the config file ?
     if !confp.exists() {
         // We did not find one, so we create it
         let mut f = File::create(confp).unwrap();
-        write!(f, "{}", toml::to_string(&Conf::default()).unwrap())
-            .unwrap();
+        write!(f, "{}", toml::to_string(&Conf::default()).unwrap()).unwrap();
         // Panic to exit the program with a definitive error message
         panic!("No config");
     }
@@ -121,33 +121,33 @@ fn main() {
                         }
                     }
                 }
-            },
+            }
             Err(e) => {
                 // This is dissapointing, but can have numerous reasons (timeout, etc)
                 // Just print the message and be done with it.
                 println!("[ERROR] Invalid Response: {}", e);
-            },
+            }
         }
 
         // Checked / Displayed all pizzas
         // Now check if we should print the next Alive Message
-        
+
         // Probs make the duration here a config option but im lazy....
         if Local::now().signed_duration_since(last_alive) > Duration::minutes(1) {
             last_alive = Local::now();
             println!(
                 "[ECHO ] I AM ALIIIIIIVE ! [{}]",
-                last_alive.to_rfc2822() /* Now with fancy Timestamp support */
+                last_alive.to_rfc2822() // Now with fancy Timestamp support
             );
         }
 
         // Check if changes to the config are longer than the threshhold
         let modt = fs::metadata("x.toml").unwrap().modified().unwrap();
-        if modt.duration_since(last_change).unwrap() >
-           Duration::milliseconds(conf.conf.refresh_conf as i64)
-               .to_std()
-               .unwrap() {
-
+        if modt.duration_since(last_change).unwrap()
+            > Duration::milliseconds(conf.conf.refresh_conf as i64)
+                .to_std()
+                .unwrap()
+        {
             // Threshhold reached, reload config !
             conf = {
                 let mut f = File::open("x.toml").unwrap();
@@ -178,7 +178,7 @@ fn request_update(url: &str) -> Result<Vec<Pizza>, String> {
                 Ok(x) => Ok(x),
                 Err(e) => Err(format!("ERR: {:?}", e)),
             }
-        },
+        }
         // Eh, its probably a timeout again ¯\_(ツ)_/¯
         Err(e) => Err(format!("ERR: {:?}", e)),
     }
@@ -195,7 +195,7 @@ struct Pizza {
 // Config root (cause i want it to look fancy)
 #[derive(Debug, Serialize, Deserialize)]
 struct Conf {
-    conf: ConfConf,
+    conf:  ConfConf,
     pizza: PizzaConf,
 }
 
@@ -209,7 +209,7 @@ struct ConfConf {
 impl Default for Conf {
     fn default() -> Self {
         Conf {
-            conf: ConfConf::default(),
+            conf:  ConfConf::default(),
             pizza: PizzaConf::default(),
         }
     }
@@ -217,19 +217,15 @@ impl Default for Conf {
 
 // DEFAULTS, FUCK YEA
 impl Default for ConfConf {
-    fn default() -> Self {
-        ConfConf {
-            refresh_conf: 1000,
-        }
-    }
+    fn default() -> Self { ConfConf { refresh_conf: 1000 } }
 }
 
 // Pizza api conf
 // (do not set refresh lower than 200, could be kinda spammy xD)
 #[derive(Debug, Serialize, Deserialize)]
 struct PizzaConf {
-    url: String,
-    refresh: u32,
+    url:      String,
+    refresh:  u32,
     to_watch: Vec<u32>,
 }
 
@@ -237,8 +233,8 @@ struct PizzaConf {
 impl Default for PizzaConf {
     fn default() -> Self {
         Self {
-            url: String::from(""),
-            refresh: 500,
+            url:      String::from(""),
+            refresh:  500,
             to_watch: Vec::new(),
         }
     }
