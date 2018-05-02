@@ -116,7 +116,9 @@ fn main() {
                                 snd.play();
 
                                 // Avoid premature exit of thread while sound is playing
-                                while snd.is_playing() {}
+                                while snd.is_playing() {
+                                    thread_sleep(Duration::milliseconds(100).to_std().unwrap());
+                                }
                             });
                         }
                     }
