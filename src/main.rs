@@ -23,7 +23,7 @@ fn main() {
     // Path to config file
     let confp: &Path = Path::new("x.toml");
     // Path to success audio file (atm defaulting to .ogg)
-    let audio_file: &Path = Path::new("success.ogg");
+    let audio_file: &Path = Path::new("sound/success.ogg");
 
     // Check if the audio file is actually there and try to init ears
     let audio_mode = match audio_file.exists() && ears::init() {
