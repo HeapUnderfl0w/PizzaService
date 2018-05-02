@@ -1,10 +1,10 @@
 extern crate chrono;
 extern crate ears;
+extern crate fern;
 extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 extern crate toml;
-extern crate fern;
 
 #[macro_use]
 extern crate log;
@@ -23,12 +23,14 @@ use std::{
 
 use chrono::{Duration, Local};
 use ears::{AudioController, Sound};
-use std::sync::{Arc, Mutex};
 use model::{Conf, Pizza};
+use std::sync::{Arc, Mutex};
 
 fn main() {
-
-    panic_with_message(setup_logging(), "We were unable to init logging (a rare thing)!");
+    panic_with_message(
+        setup_logging(),
+        "We were unable to init logging (a rare thing)!",
+    );
 
     // Path to config file
     let confp: &Path = Path::new("x.toml");
@@ -126,9 +128,7 @@ fn main() {
                                 // we were unable to find the audio file
                                 // PANIC, ABORT, ABANDON SHIP !
                                 if !path.exists() {
-                                    error!(
-                                        "Cannot find the audio file, did you move it ?"
-                                    );
+                                    error!("Cannot find the audio file, did you move it ?");
                                     return;
                                 }
 
@@ -236,7 +236,11 @@ fn setup_logging() -> Result<(), fern::InitError> {
     Ok(())
 }
 
-fn panic_with_message<T,E>(e: Result<T, E>, m: &str) where T: ::std::fmt::Debug, E: ::std::fmt::Debug {
+fn panic_with_message<T, E>(e: Result<T, E>, m: &str)
+where
+    T: ::std::fmt::Debug,
+    E: ::std::fmt::Debug,
+{
     if let Err(ee) = e {
         println!("[FATAL ERROR] {}", m);
         panic!(format!("E {:?}", ee));
