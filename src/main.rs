@@ -4,9 +4,15 @@ extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 extern crate toml;
+extern crate fern;
+
+#[macro_use]
+extern crate log;
 
 #[macro_use]
 extern crate serde_derive;
+
+mod model;
 
 use std::{
     fs::{self, File},
@@ -18,21 +24,35 @@ use std::{
 use chrono::{Duration, Local};
 use ears::{AudioController, Sound};
 use std::sync::{Arc, Mutex};
+use model::{Conf, Pizza};
 
 fn main() {
+
+    panic_with_message(setup_logging(), "We were unable to init logging (a rare thing)!");
+
     // Path to config file
     let confp: &Path = Path::new("x.toml");
     // Path to success audio file (atm defaulting to .ogg)
     let audio_file: &Path = Path::new("sound/success.ogg");
 
     // Check if the audio file is actually there and try to init ears
-    let audio_mode = match audio_file.exists() && ears::init() {
+    let audio_mode = match audio_file.exists() {
         true => {
-            println!("[INFO ] Found the audio file and initialized the audio !");
-            true
+            info!("Found Audio-file !");
+            match ears::init() {
+                Ok(_) => {
+                    info!("Initialized Audio !");
+                    true
+                }
+                Err(e) => {
+                    error!("Failed to initialize Audio");
+                    error!("E: {:?}", e);
+                    false
+                }
+            }
         }
         false => {
-            println!("[INFO ] Unable to find audio file or init audio !");
+            info!("Unable to find audio file or init audio !");
             false
         }
     };
@@ -67,6 +87,9 @@ fn main() {
 
     // Lock that prohibits multiple sounds at the same time.
     let audio_lock: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
+
+    info!("Entering Main-Loop, Press Ctrl+C to cancle");
+
     loop {
         // Request new data from API
         match request_update(&conf.pizza.url) {
@@ -75,7 +98,7 @@ fn main() {
                 for pizza in o {
                     if !pushed.contains(&pizza.id) && conf.pizza.to_watch.contains(&pizza.id) {
                         // We found a pizza that is watched & not in the list
-                        println!("[INFO ] PIZZA {} [{}] READY !", pizza.name, pizza.id);
+                        info!("PIZZA {} [{}] READY !", pizza.name, pizza.id);
                         pushed.push(pizza.id);
 
                         // Check if we have audio mode
@@ -103,8 +126,8 @@ fn main() {
                                 // we were unable to find the audio file
                                 // PANIC, ABORT, ABANDON SHIP !
                                 if !path.exists() {
-                                    println!(
-                                        "[ERROR ] Cannot find the audio file, did you move it ?"
+                                    error!(
+                                        "Cannot find the audio file, did you move it ?"
                                     );
                                     return;
                                 }
@@ -127,7 +150,7 @@ fn main() {
             Err(e) => {
                 // This is dissapointing, but can have numerous reasons (timeout, etc)
                 // Just print the message and be done with it.
-                println!("[ERROR] Invalid Response: {}", e);
+                error!("Invalid Response: {}", e);
             }
         }
 
@@ -137,8 +160,8 @@ fn main() {
         // Probs make the duration here a config option but im lazy....
         if Local::now().signed_duration_since(last_alive) > Duration::minutes(1) {
             last_alive = Local::now();
-            println!(
-                "[ECHO ] I AM ALIIIIIIVE ! [{}]",
+            trace!(
+                "I AM ALIIIIIIVE ! [{}]",
                 last_alive.to_rfc2822() // Now with fancy Timestamp support
             );
         }
@@ -159,7 +182,7 @@ fn main() {
             };
             last_change = modt;
             // Notify the user...
-            println!("[WARN ] Reloaded config !");
+            warn!("Reloaded config !");
         }
 
         // pause for x milliseconds
@@ -186,58 +209,36 @@ fn request_update(url: &str) -> Result<Vec<Pizza>, String> {
     }
 }
 
-// Pizza object (represents id & type of the pizza)
-#[derive(Debug, Serialize, Deserialize)]
-struct Pizza {
-    pub id: u32,
-    #[serde(rename = "pizza")]
-    pub name: String,
+// -------------------------------------------
+// Logging backend (log / fern)
+fn setup_logging() -> Result<(), fern::InitError> {
+    use fern::colors::{Color, ColoredLevelConfig};
+    let log_colors = ColoredLevelConfig::new()
+        .trace(Color::Blue)
+        .debug(Color::BrightBlue)
+        .info(Color::BrightWhite)
+        .warn(Color::Yellow)
+        .error(Color::BrightRed);
+    ::fern::Dispatch::new()
+        .format(move |o, m, r| {
+            o.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d %H:%M:%S]"),
+                r.target(),
+                log_colors.color(r.level()),
+                m
+            ))
+        })
+        .level(log::LevelFilter::Info)
+        .level_for(env!("CARGO_PKG_NAME"), log::LevelFilter::Trace)
+        .chain(std::io::stdout())
+        .apply()?;
+    Ok(())
 }
 
-// Config root (cause i want it to look fancy)
-#[derive(Debug, Serialize, Deserialize)]
-struct Conf {
-    conf:  ConfConf,
-    pizza: PizzaConf,
-}
-
-// Configuration config
-#[derive(Debug, Serialize, Deserialize)]
-struct ConfConf {
-    refresh_conf: u32,
-}
-
-// DEFAULTS, FUCK YEA
-impl Default for Conf {
-    fn default() -> Self {
-        Conf {
-            conf:  ConfConf::default(),
-            pizza: PizzaConf::default(),
-        }
-    }
-}
-
-// DEFAULTS, FUCK YEA
-impl Default for ConfConf {
-    fn default() -> Self { ConfConf { refresh_conf: 1000 } }
-}
-
-// Pizza api conf
-// (do not set refresh lower than 200, could be kinda spammy xD)
-#[derive(Debug, Serialize, Deserialize)]
-struct PizzaConf {
-    url:      String,
-    refresh:  u32,
-    to_watch: Vec<u32>,
-}
-
-// DEFAULTS, FUCK YEA
-impl Default for PizzaConf {
-    fn default() -> Self {
-        Self {
-            url:      String::from(""),
-            refresh:  500,
-            to_watch: Vec::new(),
-        }
+fn panic_with_message<T,E>(e: Result<T, E>, m: &str) where T: ::std::fmt::Debug, E: ::std::fmt::Debug {
+    if let Err(ee) = e {
+        println!("[FATAL ERROR] {}", m);
+        panic!(format!("E {:?}", ee));
     }
 }

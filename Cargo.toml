@@ -1,17 +1,19 @@
 [package]
-name = "pizza_service"
-version = "1.0.0"
-authors = ["HeapUnderflow <HeapUnderfl0w@users.noreply.github.com>"]
-publish = false
+name         = "pizza_service"
+version      = "1.0.1"
+authors      = ["HeapUnderflow <HeapUnderfl0w@users.noreply.github.com>"]
+publish      = false
 license-file = "LICENSE"
-keywords = ["ONOC", "API", "Script"]
+keywords     = ["ONOC", "API", "Script"]
 
 
 [dependencies]
-reqwest = "0.8"
-serde = "1"
-serde_json = "1"
-toml = "0.4"
-serde_derive = "1"
-chrono = "0.4"
-ears = "0.4"
+reqwest      = "0.8.5"
+serde        = "1.0.44"
+serde_json   = "1.0.17"
+toml         = "0.4.6"
+serde_derive = "1.0.44"
+chrono       = "0.4.2"
+ears         = "0.5.1"
+log          = "0.4.1"
+fern         = {version = "0.5.5", features = ["colored"]}
